@@ -1,61 +1,15 @@
 #include "ISAMobile.h"
 
 QMC5883 qmc;
-
-void SetPowerLevel(EngineSelector side, int level)
-{
-	level = constrain(level, -255, 255);
-
-	if (side == EngineSelector::Left)
-	{
-		if (level > 0)
-		{
-			// do przodu
-			digitalWrite(LEFT_IN1, false);
-			digitalWrite(LEFT_IN2, true);
-			analogWrite(LEFT_PWM, level);
-		}
-		else if (level < 0)
-		{
-			// do ty³u
-			digitalWrite(LEFT_IN1, true);
-			digitalWrite(LEFT_IN2, false);
-			analogWrite(LEFT_PWM, -level);
-		}
-		else
-		{
-			// stop (soft)
-			digitalWrite(LEFT_IN1, true);
-			digitalWrite(LEFT_IN2, true);
-			analogWrite(LEFT_PWM, 0);
-		}
-	}
-
-	if (side == EngineSelector::Right)
-	{
-		if (level > 0)
-		{
-			// do przodu
-			digitalWrite(RIGHT_IN1, true);
-			digitalWrite(RIGHT_IN2, false);
-			analogWrite(RIGHT_PWM, level);
-		}
-		else if (level < 0)
-		{
-			// do ty³u
-			digitalWrite(RIGHT_IN1, false);
-			digitalWrite(RIGHT_IN2, true);
-			analogWrite(RIGHT_PWM, -level);
-		}
-		else
-		{
-			// stop (soft)
-			digitalWrite(RIGHT_IN1, true);
-			digitalWrite(RIGHT_IN2, true);
-			analogWrite(RIGHT_PWM, 0);
-		}
-	}
-}
+//ich funkcje(prowadzacych)
+int measureSoundSpeed(int trigger_pin, int echo_pin);
+//nasze funkcje
+void stopWheels();
+void drivingForward(int level);
+void drivingBack(int level);
+void turnLeft(int level);  //do poprawy
+void turnRight(int level); //do poprawy
+bool isObstacleClose(UltraSoundSensor sensor, int a);
 
 void setup(void)
 {
@@ -64,7 +18,6 @@ void setup(void)
 	{
 		pinMode(ultrasound_trigger_pin[i], OUTPUT);
 		pinMode(ultrasound_echo_pin[i], INPUT);
-
 		digitalWrite(ultrasound_trigger_pin[i], 0);
 	}
 
@@ -77,20 +30,23 @@ void setup(void)
 	pinMode(RIGHT_IN1, OUTPUT);
 	pinMode(RIGHT_IN2, OUTPUT);
 
-	SetPowerLevel(EngineSelector::Left, 0);
-	SetPowerLevel(EngineSelector::Right, 0);
-
-	// Wejœcia enkoderowe
-	pinMode(ENCODER_LEFT, INPUT);
-	pinMode(ENCODER_RIGHT, INPUT);
+	stopWheels();
 
 	Serial.begin(9600);
 	Serial.print("Test... ");
 
 	Wire.begin();
 	qmc.init();
+}
 
-	Serial1.begin(9600); // HC06
+void loop(void)
+{
+
+	if (isObstacleClose(UltraSoundSensor::All, 10))
+		Serial.println("blisko");
+	else
+		Serial.println("daleko");
+	delay(1000);
 }
 
 int measureSoundSpeed(int trigger_pin, int echo_pin)
@@ -110,242 +66,65 @@ int measureSoundSpeed(int trigger_pin, int echo_pin)
 	return distance;
 }
 
-
-void cmd_proximity(const char *msg, UltraSoundSensor sensor)
+void stopWheels()
 {
-	if (sensor == UltraSoundSensor::All)
-	{
-
-		char buffer[128];
-
-		int d[4][5] = {0};
-		int sum[4] = {0};
-		int id[4] = {0};
-		int dist[4] = {0};
-
-		while (Serial.available() == 0)
-		{
-			for (int sens = (int)UltraSoundSensor::Front; sens <= (int)UltraSoundSensor::Right; sens++)
-			{
-				dist[sens] = measureSoundSpeed(
-					ultrasound_trigger_pin[sens],
-					ultrasound_echo_pin[sens]);
-
-				// œrednia krocz¹ca
-				sum[sens] -= d[sens][id[sens]];
-				sum[sens] += d[sens][id[sens]] = dist[sens];
-				id[sens] = (id[sens] + 1) % 5;
-				dist[sens] = sum[sens] / 5;
-			}
-			sprintf(buffer, "\nFRONT: %4dcm; BACK: %4dcm; LEFT: %4dcm; RIGHT: %4dcm; ",
-					dist[(int)UltraSoundSensor::Front],
-					dist[(int)UltraSoundSensor::Back],
-					dist[(int)UltraSoundSensor::Left],
-					dist[(int)UltraSoundSensor::Right]);
-			Serial.print(buffer);
-		}
-	}
-	else
-	{
-
-		char buffer[64];
-		int d[5] = {};
-		int sum = 0;
-		int id = 0;
-
-		while (Serial.available() == 0)
-		{
-			int dist = measureSoundSpeed(
-				ultrasound_trigger_pin[(int)sensor],
-				ultrasound_echo_pin[(int)sensor]);
-
-			// œrednia krocz¹ca
-			sum -= d[id];
-			sum += d[id] = dist;
-			id = (id + 1) % 5;
-			dist = sum / 5;
-
-			sprintf(buffer, "\n%s: %0dcm", msg, dist);
-			Serial.print(buffer);
-		}
-	}
-
-	while (Serial.available())
-		Serial.read();
+	Serial.print("STOP: ");
+	Serial.println("0");
+	digitalWrite(LEFT_IN1, true);
+	digitalWrite(LEFT_IN2, true);
+	analogWrite(LEFT_PWM, 0);
+	digitalWrite(RIGHT_IN1, true);
+	digitalWrite(RIGHT_IN2, true);
+	analogWrite(RIGHT_PWM, 0);
 }
-
-void cmd_qmc(void)
+void drivingForward(int level)
 {
-	char buffer[64];
-
-	qmc.reset();
-	while (Serial.available() == 0)
-	{
-		qmc.measure();
-		int16_t x = qmc.getX();
-		int16_t y = qmc.getY();
-		int16_t z = qmc.getZ();
-
-		sprintf(buffer, "\n X=%5d Y=%5d Z=%5d", x, y, z);
-		Serial.print(buffer);
-	}
-
-	while (Serial.available())
-		Serial.read();
+	level = constrain(level, -255, 255);
+	Serial.print("Do przodu: ");
+	Serial.println(level);
+	digitalWrite(LEFT_IN1, false);
+	digitalWrite(LEFT_IN2, true);
+	analogWrite(LEFT_PWM, level);
+	digitalWrite(RIGHT_IN1, true);
+	digitalWrite(RIGHT_IN2, false);
+	analogWrite(RIGHT_PWM, level);
 }
-
-void cmd_bluetooth(void)
+void drivingBack(int level)
 {
-	Serial.println("### HC06: Tryb komunikacji z modu³em HC06. Aby wyjœæ, wpisz \"++++++\"...");
-	Serial.println("### Protokó³: Modu³ analizuje czas otrzymywania danych; polecenie musi");
-	Serial.println("###           koñczyæ siê krótk¹ przerw¹ (ok. 500ms) BEZ znaku nowej linii");
-	Serial.println("### Testy:    Wyœlij AT (dok³adnie dwa bajty)");
-	Serial.println("### Klient:   Wykorzystaj apkê androidow¹ (np. Serial Bluetooth Terminal");
-	Serial.println("### Modu³:    Miganie diod oznacza brak sparowanego urz¹dzenia; pin=1234");
 
-	Serial.print("\n> ");
-
-	int plus_counter = 0;
-	while (true)
-	{
-		int b = 0;
-		if (Serial.available())
-		{
-
-			b = Serial.read();
-
-			if (b == '+')
-			{
-				plus_counter++;
-				if (plus_counter >= 6)
-					break; // wyjdŸ na 6 plusów
-			}
-
-			if (b != '\n')		  // HC06 nie lubi znaków nowej linii ;)
-				Serial1.write(b); // wyœlij do hc06
-
-			Serial.write(b); // echo lokalne
-		}
-
-		if (Serial1.available())
-		{
-			int b = Serial1.read();
-			Serial.write(b);
-		}
-	}
-
-	Serial.println("HC06: Koniec.");
+	level = constrain(level, -255, 255);
+	Serial.print("Do tylu: ");
+	Serial.println(level);
+	digitalWrite(LEFT_IN1, true);
+	digitalWrite(LEFT_IN2, false);
+	analogWrite(LEFT_PWM, -level);
+	digitalWrite(RIGHT_IN1, false);
+	digitalWrite(RIGHT_IN2, true);
+	analogWrite(RIGHT_PWM, -level);
 }
-
-void cmd_serial0(void)
+void turnLeft(int level)
 {
-	Serial.println("### Komunikacja po porcie szeregowym Serial0 Aby wyjœæ, wpisz \"++++++\"...");
-	Serial.println("### Parametry ³acza: 9600bps, 8 bitów danych, brak parzystoœci, 1 bit stopu (9600,8N1)");
-
-	Serial.print("\n> ");
-
-	int plus_counter = 0;
-	while (true)
-	{
-		int b = 0;
-		if (Serial.available())
-		{
-
-			b = Serial.read();
-
-			if (b == '+')
-			{
-				plus_counter++;
-				if (plus_counter >= 6)
-					break; // wyjdŸ na 6 plusów
-			}
-
-			Serial1.write(b); // wyœlij do urz¹dzenia zewnêtrznego (np. raspberry pi)
-			Serial.write(b);  // echo lokalne
-		}
-
-		if (Serial1.available())
-		{
-			int b = Serial1.read();
-			Serial.write(b);
-		}
-	}
-
-	Serial.println("Serial0: Koniec.");
+	level = constrain(level, -255, 255);
+	Serial.print("W lewo: ");
+	Serial.println(level);
+	digitalWrite(LEFT_IN1, true);
+	digitalWrite(LEFT_IN2, false);
+	analogWrite(LEFT_PWM, -level);
+	digitalWrite(RIGHT_IN1, true);
+	digitalWrite(RIGHT_IN2, false);
+	analogWrite(RIGHT_PWM, level);
 }
-
-void cmd_encoders(void)
+void turnRight(int level)
 {
-	pinMode(ENCODER_LEFT, INPUT);
-	pinMode(ENCODER_RIGHT, INPUT);
-
-	char buffer[] = {'\n', 'L', '-', 'R', '-', '\x0'}; // 2, 4
-
-	while (Serial.available() == 0)
-	{
-		buffer[2] = '0' + digitalRead(50);
-		buffer[4] = '0' + digitalRead(51);
-
-		Serial.print(buffer);
-	}
-
-	while (Serial.available())
-		Serial.read();
-}
-void zatrzymajKola() {
-  Serial.print("STOP: ");
-  Serial.println("0");
-  digitalWrite(LEFT_IN1, true);
-      digitalWrite(LEFT_IN2, true);
-      analogWrite(LEFT_PWM, 0);
-  digitalWrite(RIGHT_IN1, true);
-      digitalWrite(RIGHT_IN2, true);
-      analogWrite(RIGHT_PWM, 0);
-}
-void jazdaDoPrzodu(int level) {
-  level = constrain(level, -255, 255);
-  Serial.print("Do przodu: ");
-  Serial.println(level);
- digitalWrite(LEFT_IN1, false);
-     digitalWrite(LEFT_IN2, true);
-      analogWrite(LEFT_PWM, level);
-      digitalWrite(RIGHT_IN1, true);
-      digitalWrite(RIGHT_IN2, false);
-      analogWrite(RIGHT_PWM, level);
-}
-void jazdaDoTylu(int level) {
-
-  level = constrain(level, -255, 255);
-  Serial.print("Do tylu: ");
-  Serial.println(level);
- digitalWrite(LEFT_IN1, true);
-     digitalWrite(LEFT_IN2, false);
-      analogWrite(LEFT_PWM, -level);
-      digitalWrite(RIGHT_IN1, false);
-      digitalWrite(RIGHT_IN2, true);
-      analogWrite(RIGHT_PWM, -level);
-}
-void skretWLewo(int level) {//do poprawy
-  level = constrain(level, -255, 255);
-  Serial.print("W lewo: ");
-  Serial.println(level);
-  digitalWrite(LEFT_IN1, true);
-      digitalWrite(LEFT_IN2, false);
-      analogWrite(LEFT_PWM, -level);
-      digitalWrite(RIGHT_IN1, true);
-      digitalWrite(RIGHT_IN2, false);
-      analogWrite(RIGHT_PWM, level);
-}
-void skretWPrawo(int level) {//do poprawy
-  level = constrain(level, -255, 255);
-  Serial.print("W prawo: ");
-  Serial.println(level);
-  digitalWrite(LEFT_IN1, false);
-      digitalWrite(LEFT_IN2, true);
-      analogWrite(LEFT_PWM, level);
-       digitalWrite(RIGHT_IN1, false);
-      digitalWrite(RIGHT_IN2, true);
-      analogWrite(RIGHT_PWM, -level);
+	level = constrain(level, -255, 255);
+	Serial.print("W prawo: ");
+	Serial.println(level);
+	digitalWrite(LEFT_IN1, false);
+	digitalWrite(LEFT_IN2, true);
+	analogWrite(LEFT_PWM, level);
+	digitalWrite(RIGHT_IN1, false);
+	digitalWrite(RIGHT_IN2, true);
+	analogWrite(RIGHT_PWM, -level);
 }
 bool isObstacleClose(UltraSoundSensor sensor, int a)
 {
@@ -381,14 +160,4 @@ bool isObstacleClose(UltraSoundSensor sensor, int a)
 		return true;
 	else
 		return false;
-}
-
-void loop(void)
-{
-
-	if (isObstacleClose(UltraSoundSensor::All, 10))
-		Serial.println("blisko");
-	else
-		Serial.println("daleko");
-	delay(1000);
 }
