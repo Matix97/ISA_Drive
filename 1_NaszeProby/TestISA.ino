@@ -292,6 +292,61 @@ void cmd_encoders(void)
 	while (Serial.available())
 		Serial.read();
 }
+void zatrzymajKola() {
+  Serial.print("STOP: ");
+  Serial.println("0");
+  digitalWrite(LEFT_IN1, true);
+      digitalWrite(LEFT_IN2, true);
+      analogWrite(LEFT_PWM, 0);
+  digitalWrite(RIGHT_IN1, true);
+      digitalWrite(RIGHT_IN2, true);
+      analogWrite(RIGHT_PWM, 0);
+}
+void jazdaDoPrzodu(int level) {
+  level = constrain(level, -255, 255);
+  Serial.print("Do przodu: ");
+  Serial.println(level);
+ digitalWrite(LEFT_IN1, false);
+     digitalWrite(LEFT_IN2, true);
+      analogWrite(LEFT_PWM, level);
+      digitalWrite(RIGHT_IN1, true);
+      digitalWrite(RIGHT_IN2, false);
+      analogWrite(RIGHT_PWM, level);
+}
+void jazdaDoTylu(int level) {
+
+  level = constrain(level, -255, 255);
+  Serial.print("Do tylu: ");
+  Serial.println(level);
+ digitalWrite(LEFT_IN1, true);
+     digitalWrite(LEFT_IN2, false);
+      analogWrite(LEFT_PWM, -level);
+      digitalWrite(RIGHT_IN1, false);
+      digitalWrite(RIGHT_IN2, true);
+      analogWrite(RIGHT_PWM, -level);
+}
+void skretWLewo(int level) {//do poprawy
+  level = constrain(level, -255, 255);
+  Serial.print("W lewo: ");
+  Serial.println(level);
+  digitalWrite(LEFT_IN1, true);
+      digitalWrite(LEFT_IN2, false);
+      analogWrite(LEFT_PWM, -level);
+      digitalWrite(RIGHT_IN1, true);
+      digitalWrite(RIGHT_IN2, false);
+      analogWrite(RIGHT_PWM, level);
+}
+void skretWPrawo(int level) {//do poprawy
+  level = constrain(level, -255, 255);
+  Serial.print("W prawo: ");
+  Serial.println(level);
+  digitalWrite(LEFT_IN1, false);
+      digitalWrite(LEFT_IN2, true);
+      analogWrite(LEFT_PWM, level);
+       digitalWrite(RIGHT_IN1, false);
+      digitalWrite(RIGHT_IN2, true);
+      analogWrite(RIGHT_PWM, -level);
+}
 bool isObstacleClose(UltraSoundSensor sensor, int a)
 {
 	char buffer[128];
