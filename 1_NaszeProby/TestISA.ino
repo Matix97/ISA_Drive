@@ -1,6 +1,14 @@
 #include "ISAMobile.h"
 
 QMC5883 qmc;
+
+typedef struct Coordinates
+{//C type: short stdint.h type: int16_t Bits: 16 Sign: Signed  Range:-32,768 .. 32,767
+	int16_t x;
+	int16_t y;
+	int16_t z;
+};
+
 //ich funkcje(prowadzacych)
 int measureSoundSpeed(int trigger_pin, int echo_pin);
 //nasze funkcje
@@ -10,6 +18,7 @@ void drivingBack(int level);
 void turnLeft(int level);  //do poprawy
 void turnRight(int level); //do poprawy
 bool isObstacleClose(UltraSoundSensor sensor, int a);
+Coordinates readCompass();
 
 void setup(void)
 {
@@ -160,4 +169,14 @@ bool isObstacleClose(UltraSoundSensor sensor, int a)
 		return true;
 	else
 		return false;
+}
+Coordinates readCompass()
+{
+	Coordinates tym;
+	qmc.reset();
+	qmc.measure();
+	tym.x = qmc.getX();
+	tym.y = qmc.getY();
+	tym.z = qmc.getZ();
+	return tym;
 }
