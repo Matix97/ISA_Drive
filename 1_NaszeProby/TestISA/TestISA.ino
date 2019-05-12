@@ -211,13 +211,32 @@ bool isObstacleCloseBySide(UltraSoundSensor sensor, int minDistance)
   else
     return false;
 }
+
 void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime) //ustawia się na pałę lewym bokiem do przeszkody, można by użyć tu funckji setDirection
 {
     int lastDistance;
+    
     do{
      lastDistance=readProximityBySide(sensor);
      turnRight(speed);
      delay(time);
      breakCar();
     }while(lastDistance>readProximityBySide(sensor) || readProximityBySide(sensor)==0);
+
+     do{
+     lastDistance=readProximityBySide(sensor);
+     turnLeft(speed);
+     delay(time);
+     breakCar();
+    }while(lastDistance>readProximityBySide(sensor) || readProximityBySide(sensor)==0);
+}
+
+void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed)
+{
+  int lastDistance;
+  if(!isObstacleCloseBySide(UltraSoundSensor::Front) driveForward(testSpeed);
+  do
+  {lastDistance=readProximityBySide(sensor);
+  }while(lastDistance+15>=readProximityBySide(sensor) || readProximityBySide(sensor)!=0);
+  breakCar();
 }
