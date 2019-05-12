@@ -75,7 +75,7 @@ int measureSoundSpeed(int trigger_pin, int echo_pin)
 	return distance;
 }
 
-void stopWheels()
+void breakCar()
 {
 	Serial.print("STOP: ");
 	Serial.println("0");
@@ -86,7 +86,7 @@ void stopWheels()
 	digitalWrite(RIGHT_IN2, true);
 	analogWrite(RIGHT_PWM, 0);
 }
-void drivingForward(int level)
+void driveForward(int level)
 {
 	level = constrain(level, -255, 255);
 	Serial.print("Do przodu: ");
@@ -98,7 +98,7 @@ void drivingForward(int level)
 	digitalWrite(RIGHT_IN2, false);
 	analogWrite(RIGHT_PWM, level);
 }
-void drivingBack(int level)
+void driveBack(int level)
 {
 
 	level = constrain(level, -255, 255);
@@ -183,13 +183,13 @@ Coordinates readCompass()
 	return tym;
 }
 
-int readProximityBySide(UltraSoundSensor sensor, int level)
+int readProximityBySide(UltraSoundSensor sensor)
 {
     int d[5] = {};
     int sum = 0;
     int id = 0;
     
-   for(int i=0; i<level; i++)
+   for(int i=0; i<5; i++)
    {
      int dist = measureSoundSpeed(
         ultrasound_trigger_pin[(int)sensor],
@@ -204,10 +204,20 @@ int readProximityBySide(UltraSoundSensor sensor, int level)
    return dist;
 }
 
-bool isObstacleCloseBySide(UltraSoundSensor sensor, int proximityLevel, int minDistance)
+bool isObstacleCloseBySide(UltraSoundSensor sensor, int minDistance)
 {
-    if (readProximityBySide(sensor, proximityLevel) < minDistance)
+    if (readProximityBySide(sensor) < minDistance)
     return true;
   else
     return false;
+}
+void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime) //ustawia się na pałę lewym bokiem do przeszkody, można by użyć tu funckji setDirection
+{
+    int lastDistance;
+    do{
+     lastDistance=readProximityBySide(sensor);
+     turnRight(speed);
+     delay(time);
+     breakCar();
+    }while(lastDistance>readProximityBySide(sensor) || readProximityBySide(sensor)==0);
 }
