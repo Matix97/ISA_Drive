@@ -203,3 +203,11 @@ int readProximityBySide(UltraSoundSensor sensor, int level)
    }
    return dist;
 }
+
+bool isObstacleCloseBySide(UltraSoundSensor sensor, int proximityLevel, int minDistance)
+{
+    if (readProximityBySide(sensor, proximityLevel) < minDistance)
+    return true;
+  else
+    return false;
+}
