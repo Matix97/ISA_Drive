@@ -240,3 +240,20 @@ void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed)
   }while(lastDistance+15>=readProximityBySide(sensor) || readProximityBySide(sensor)!=0);
   breakCar();
 }
+
+void setDirection(Coordinates tym){
+  Coordinates currentCoordinates = readCompas();
+  int value = 50;
+  while(|currentCoordinates.x - tym.x| > value){
+    currentCoordinates = readCompas();
+    if(currentCoordinates.x > tym.x){
+      turnRight(speed);
+      delay(time);
+      breakCar();
+    }else{
+      turnLeft(speed);
+       delay(time);
+      breakCar();
+    }
+  }
+}
