@@ -12,13 +12,18 @@ typedef struct Coordinates
 //ich funkcje(prowadzacych)
 int measureSoundSpeed(int trigger_pin, int echo_pin);
 //nasze funkcje
-void stopWheels();
-void drivingForward(int level);
-void drivingBack(int level);
+void breakCar();
+void driveForward(int level);
+void driveBack(int level);
 void turnLeft(int level);  //do poprawy
 void turnRight(int level); //do poprawy
 bool isObstacleClose(UltraSoundSensor sensor, int a);
 Coordinates readCompass();
+int readProximityBySide(UltraSoundSensor sensor);
+bool isObstacleCloseBySide(UltraSoundSensor sensor, int minDistance);
+void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime);
+void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed);
+void setDirection(Coordinates tym);
 
 void setup(void)
 {
