@@ -150,7 +150,7 @@ void turnRight(int level)
 	analogWrite(RIGHT_PWM, -level);
 }
 
-bool isObstacleClose(UltraSoundSensor sensor, int a)
+bool isObstacleClose(UltraSoundSensor sensor, int a)//nadmiarowa
 {
 	char buffer[128];
 
@@ -238,8 +238,8 @@ void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int ro
 		turnRight(rotationSpeed);
 		delay(rotationTime);
 		breakCar();
-	} while (lastDistance > readProximityBySide(sensor) || readProximityBySide(sensor) == 0);
-
+	} while (lastDistance > readProximityBySide(sensor) || readProximityBySide(sensor) != 0);//== czy =
+///////////PO KIJ TO
 	do
 	{
 		lastDistance = readProximityBySide(sensor);
@@ -264,14 +264,13 @@ void setDirection(Coordinates tym, int speed, int time)
 {
 	Coordinates currentCoordinates = readCompass();
 	int value = 30;
-  Serial.begin(9600);
+  
  // Serial.print("Test funkcji setDirection\n");
  // Serial.println(currentCoordinates.x);
   //delay(1000);
   
 	while ( abs(currentCoordinates.x - tym.x) > value)
 	{
-		currentCoordinates = readCompass();
 		if (currentCoordinates.x > tym.x)
 		{
 			turnLeft(speed);
@@ -280,9 +279,10 @@ void setDirection(Coordinates tym, int speed, int time)
 		}
 		else
 		{
-      turnRight(speed);
+			turnRight(speed);
 			delay(time);
 			breakCar();
 		}
+		currentCoordinates = readCompass();
 	}
 }
