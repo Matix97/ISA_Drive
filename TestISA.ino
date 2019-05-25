@@ -1,14 +1,15 @@
 #include "ISAMobile.h"
+#include <stdlib.h>
 
 QMC5883 qmc;
 
 typedef struct Coordinates
-{//C type: short stdint.h type: int16_t Bits: 16 Sign: Signed  Range:-32,768 .. 32,767
+{ //C type: short stdint.h type: int16_t Bits: 16 Sign: Signed  Range:-32,768 .. 32,767
 	int16_t x;
 	int16_t y;
 	int16_t z;
 };
-
+Coordinates kierunek;
 //ich funkcje(prowadzacych)
 int measureSoundSpeed(int trigger_pin, int echo_pin);
 //nasze funkcje
@@ -23,11 +24,11 @@ int readProximityBySide(UltraSoundSensor sensor);
 bool isObstacleCloseBySide(UltraSoundSensor sensor, int minDistance);
 void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime);
 void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed);
-void setDirection(Coordinates tym);
+void setDirection(Coordinates tym, int speed, int time);
 
 void setup(void)
 {
-	// Czujniki ultradŸwiekowe
+	// Czujniki ultrad?wiekowe
 	for (int i = (int)UltraSoundSensor::__first; i <= (int)UltraSoundSensor::__last; i++)
 	{
 		pinMode(ultrasound_trigger_pin[i], OUTPUT);
@@ -44,23 +45,132 @@ void setup(void)
 	pinMode(RIGHT_IN1, OUTPUT);
 	pinMode(RIGHT_IN2, OUTPUT);
 
-	stopWheels();
+	breakCar();
 
 	Serial.begin(9600);
 	Serial.print("Test... ");
 
 	Wire.begin();
 	qmc.init();
+	qmc.reset();
+	//tak dla pewności 2 odczyty na pusto, bo po resecie często pierwszych parę pomiarów
+	//zwraca -1
+	readCompass();
+	readCompass();
+	kierunek = readCompass();
 }
 
 void loop(void)
 {
 
-	if (isObstacleClose(UltraSoundSensor::All, 10))
-		Serial.println("blisko");
+	if (!isObstacleCloseBySide(UltraSoundSensor::Front, 15))
+	{
+		driveForward(150);
+	}
+	if (isObstacleCloseBySide(UltraSoundSensor::Front, 15))
+	{
+		setCarParrarelToObstacle(UltraSoundSensor::Front, 150, 30);
+	}
+	breakCar();
+
+	//setDirection(kierunek, 150, 20);//150,30
+}
+
+void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime) //lewym bokiem do przszkody
+{
+	int frontDistance = readProximityBySide(UltraSoundSensor::Front);
+	int initialFrontDistance = frontDistance;
+	int leftDistance = readProximityBySide(UltraSoundSensor::Left);
+
+	//obracaj w prawo dopóki leftDistance należy (initialFrontDistance-5,initialFrontDistance+5) i frontDistance>60
+	while (leftDistance < initialFrontDistance + 5 && leftDistance > initialFrontDistance - 5 && frontDistance > 60)
+	{
+		turnRight(rotationSpeed);
+		delay(rotationTime);
+		breakCar();
+		frontDistance = readProximityBySide(UltraSoundSensor::Front);
+		leftDistance = readProximityBySide(UltraSoundSensor::Left);
+	}
+}
+
+void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed)
+{
+	int lastDistance;
+	//if (!isObstacleCloseBySide(UltraSoundSensor::Front, 15)) driveForward(testSpeed);
+	do
+	{
+		lastDistance = readProximityBySide(sensor);
+	} while (lastDistance + 15 >= readProximityBySide(sensor) || readProximityBySide(sensor) != 0);
+	breakCar();
+}
+
+Coordinates readCompass()
+{
+	Coordinates tym;
+	for (int i = 0; i < 10; i++)
+	{
+		qmc.measure();
+		tym.x += qmc.getX();
+		tym.y += qmc.getY();
+		tym.z += qmc.getZ();
+	}
+
+	tym.x = (int)tym.x / 10;
+	tym.y = (int)tym.y / 10;
+	tym.z = (int)tym.z / 10;
+	return tym;
+}
+
+int readProximityBySide(UltraSoundSensor sensor)
+{
+	int d[5] = {};
+	int sum = 0;
+	int id = 0;
+	int dist;
+
+	for (int i = 0; i < 5; i++)
+	{
+		dist = measureSoundSpeed(
+			ultrasound_trigger_pin[(int)sensor],
+			ultrasound_echo_pin[(int)sensor]);
+
+		// �rednia krocz�ca
+		sum -= d[id];
+		sum += d[id] = dist;
+		id = (id + 1) % 5;
+		dist = sum / 5;
+	}
+	return dist;
+}
+
+bool isObstacleCloseBySide(UltraSoundSensor sensor, int minDistance)
+{
+	if (readProximityBySide(sensor) < minDistance)
+		return true;
 	else
-		Serial.println("daleko");
-	delay(1000);
+		return false;
+}
+void setDirection(Coordinates tym, int speed, int time)
+{
+	Coordinates currentCoordinates = readCompass();
+	int value = 40;
+
+	while (abs(currentCoordinates.x - tym.x) > value)
+	{
+		if (currentCoordinates.x > tym.x + value || currentCoordinates.x > tym.x - value)
+		{
+			turnLeft(speed);
+			delay(time);
+			breakCar();
+		}
+		if (currentCoordinates.x < tym.x + value || currentCoordinates.x < tym.x - value)
+		{
+			turnRight(speed);
+			delay(time);
+			breakCar();
+		}
+		currentCoordinates = readCompass();
+	}
 }
 
 int measureSoundSpeed(int trigger_pin, int echo_pin)
@@ -72,10 +182,10 @@ int measureSoundSpeed(int trigger_pin, int echo_pin)
 	delayMicroseconds(10);
 	digitalWrite(trigger_pin, false);
 
-	// zmierz czas przelotu fali dŸwiêkowej
+	// zmierz czas przelotu fali d?wi?kowej
 	int duration = pulseIn(echo_pin, true, 50 * 1000);
 
-	// przelicz czas na odleg³oœæ (1/2 Vsound(t=20st.C))
+	// przelicz czas na odleg?o?? (1/2 Vsound(t=20st.C))
 	int distance = (int)((float)duration * 0.03438f * 0.5f);
 	return distance;
 }
@@ -126,7 +236,7 @@ void turnLeft(int level)
 	analogWrite(LEFT_PWM, -level);
 	digitalWrite(RIGHT_IN1, true);
 	digitalWrite(RIGHT_IN2, false);
-	analogWrite(RIGHT_PWM, level);
+	analogWrite(RIGHT_PWM, level + 50);
 }
 void turnRight(int level)
 {
@@ -135,130 +245,8 @@ void turnRight(int level)
 	Serial.println(level);
 	digitalWrite(LEFT_IN1, false);
 	digitalWrite(LEFT_IN2, true);
-	analogWrite(LEFT_PWM, level);
+	analogWrite(LEFT_PWM, level + 50);
 	digitalWrite(RIGHT_IN1, false);
 	digitalWrite(RIGHT_IN2, true);
 	analogWrite(RIGHT_PWM, -level);
-}
-
-bool isObstacleClose(UltraSoundSensor sensor, int a)
-{
-	char buffer[128];
-
-	int d[4][5] = {0};
-	int sum[4] = {0};
-	int id[4] = {0};
-	int dist[4] = {0};
-
-	for (int i = 0; i < 5; i++)
-	{
-		for (int sens = (int)UltraSoundSensor::Front; sens <= (int)UltraSoundSensor::Right; sens++)
-		{
-			dist[sens] = measureSoundSpeed(
-				ultrasound_trigger_pin[sens],
-				ultrasound_echo_pin[sens]);
-
-			sum[sens] -= d[sens][id[sens]];
-			sum[sens] += d[sens][id[sens]] = dist[sens];
-			id[sens] = (id[sens] + 1) % 5;
-			dist[sens] = sum[sens] / 5;
-		}
-	}
-
-	sprintf(buffer, "\nFRONT: %4dcm; BACK: %4dcm; LEFT: %4dcm; RIGHT: %4dcm; ",
-			dist[(int)UltraSoundSensor::Front],
-			dist[(int)UltraSoundSensor::Back],
-			dist[(int)UltraSoundSensor::Left],
-			dist[(int)UltraSoundSensor::Right]);
-	Serial.print(buffer);
-	if (a < dist[(int)sensor])
-		return true;
-	else
-		return false;
-}
-
-Coordinates readCompass()
-{
-	Coordinates tym;
-	qmc.reset();
-	qmc.measure();
-	tym.x = qmc.getX();
-	tym.y = qmc.getY();
-	tym.z = qmc.getZ();
-	return tym;
-}
-
-int readProximityBySide(UltraSoundSensor sensor)
-{
-    int d[5] = {};
-    int sum = 0;
-    int id = 0;
-    
-   for(int i=0; i<5; i++)
-   {
-     int dist = measureSoundSpeed(
-        ultrasound_trigger_pin[(int)sensor],
-        ultrasound_echo_pin[(int)sensor]);
-
-      // średnia krocząca
-      sum -= d[id];
-      sum += d[id] = dist;
-      id = (id + 1) % 5;
-      dist = sum / 5;
-   }
-   return dist;
-}
-
-bool isObstacleCloseBySide(UltraSoundSensor sensor, int minDistance)
-{
-    if (readProximityBySide(sensor) < minDistance)
-    return true;
-  else
-    return false;
-}
-
-void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime) //ustawia się na pałę lewym bokiem do przeszkody, można by użyć tu funckji setDirection
-{
-    int lastDistance;
-    
-    do{
-     lastDistance=readProximityBySide(sensor);
-     turnRight(speed);
-     delay(time);
-     breakCar();
-    }while(lastDistance>readProximityBySide(sensor) || readProximityBySide(sensor)==0);
-
-     do{
-     lastDistance=readProximityBySide(sensor);
-     turnLeft(speed);
-     delay(time);
-     breakCar();
-    }while(lastDistance>readProximityBySide(sensor) || readProximityBySide(sensor)==0);
-}
-
-void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed)
-{
-  int lastDistance;
-  if(!isObstacleCloseBySide(UltraSoundSensor::Front) driveForward(testSpeed);
-  do
-  {lastDistance=readProximityBySide(sensor);
-  }while(lastDistance+15>=readProximityBySide(sensor) || readProximityBySide(sensor)!=0);
-  breakCar();
-}
-
-void setDirection(Coordinates tym){
-  Coordinates currentCoordinates = readCompas();
-  int value = 50;
-  while(|currentCoordinates.x - tym.x| > value){
-    currentCoordinates = readCompas();
-    if(currentCoordinates.x > tym.x){
-      turnRight(speed);
-      delay(time);
-      breakCar();
-    }else{
-      turnLeft(speed);
-       delay(time);
-      breakCar();
-    }
-  }
 }
