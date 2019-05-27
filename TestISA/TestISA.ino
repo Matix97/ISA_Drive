@@ -62,18 +62,30 @@ void setup(void)
 
 void loop(void)
 {
+if(!isObstacleCloseBySide(UltraSoundSensor::Front,25))
+  {
+    driveForward(150);
+    delay(20);
+  }
+  //if(isObstacleCloseBySide(UltraSoundSensor::Front,25))
+  else
+  {
+    setCarParrarelToObstacle(UltraSoundSensor::Front,150,30);
+   // ommitObstacleBySide(UltraSoundSensor::Left,150);
+  }
+ // breakCar();
 
-	if (!isObstacleCloseBySide(UltraSoundSensor::Front, 15))
-	{
-		driveForward(150);
-	}
-	if (isObstacleCloseBySide(UltraSoundSensor::Front, 15))
-	{
-		setCarParrarelToObstacle(UltraSoundSensor::Front, 150, 30);
-		ommitObstacleBySide(UltraSoundSensor::Left,150);
-	}
-	breakCar();
-	setDirection(kierunek, 150, 20);//150,30
+	//if (!isObstacleCloseBySide(UltraSoundSensor::Front, 15))
+	//{
+	//	driveForward(150);
+	//}
+	//if (isObstacleCloseBySide(UltraSoundSensor::Front, 15))
+	//{
+	//	setCarParrarelToObstacle(UltraSoundSensor::Front, 150, 30);
+		//ommitObstacleBySide(UltraSoundSensor::Left,150);
+	//}
+	//breakCar();
+	//setDirection(kierunek, 150, 20);//150,30
 }
 
 void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int rotationTime) //lewym bokiem do przszkody
@@ -82,21 +94,24 @@ void setCarParrarelToObstacle(UltraSoundSensor sensor, int rotationSpeed, int ro
 	int initialFrontDistance = frontDistance;
 	int leftDistance = readProximityBySide(UltraSoundSensor::Left);
 
-	//obracaj w prawo dopóki leftDistance należy (initialFrontDistance-10,initialFrontDistance+5) i frontDistance>60
-	while (leftDistance < initialFrontDistance + 5 && leftDistance > initialFrontDistance - 10 && frontDistance > 60)
-	{
+	//obracaj w prawo dopóki leftDistance należy (initialFrontDistance-10,initialFrontDistance+10) i frontDistance>60
+	while ( !(leftDistance < initialFrontDistance + 5 && leftDistance > initialFrontDistance - 10)  )
+	{//leftDistance < initialFrontDistance + 5 && leftDistance > initialFrontDistance - 10 &&
+  do{
 		turnRight(rotationSpeed);
 		delay(rotationTime);
 		breakCar();
 		frontDistance = readProximityBySide(UltraSoundSensor::Front);
 		leftDistance = readProximityBySide(UltraSoundSensor::Left);
+  }while( !(frontDistance > 60));
 	}
 }
 
 void ommitObstacleBySide(UltraSoundSensor sensor, int testSpeed)
 {
 	int lastDistance=readProximityBySide(sensor);
-	while(lastDistance != 0 && lastDistance < 30 )
+	//while(lastDistance != 0 && lastDistance < 30 )
+  while(lastDistance<30)
 	{
 		driveForward(testSpeed);
 		delay(20);
